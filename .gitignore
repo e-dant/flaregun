@@ -1,6 +1,5 @@
 /target
 /include
-skel_*.rs
 *.o
 *.old
 vmlinux.h
