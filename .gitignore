@@ -1,0 +1,6 @@
+/target
+/include
+skel_*.rs
+*.o
+*.old
+*.h
