@@ -1,6 +1,6 @@
 [package]
 name = "flaregun"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Will <edant.io@protonmail.com>"]
 description = "Tracing and monitoring tool for Linux"
@@ -15,7 +15,7 @@ name = "flaregun"
 path = "src/lib.rs"
 
 [[bin]]
-name = "fg"
+name = "fl"
 path = "src/main.rs"
 
 [dependencies]
