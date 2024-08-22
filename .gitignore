@@ -3,4 +3,4 @@
 skel_*.rs
 *.o
 *.old
-*.h
+vmlinux.h

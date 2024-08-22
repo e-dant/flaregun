@@ -6,6 +6,6 @@ fn main() {
         let progname = target.bpf_prog_name();
         let visible = format!("{manifestdir}/src/skel_{progname}.rs");
         let artifact = format!("{outdir}/skel_{progname}.rs");
-        std::fs::copy(&visible, &artifact).unwrap();
+        std::fs::copy(&artifact, &visible).unwrap();
     });
 }
