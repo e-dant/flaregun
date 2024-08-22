@@ -2,6 +2,13 @@
 name = "flaregun"
 version = "0.1.0"
 edition = "2021"
+authors = ["Will <edant.io@protonmail.com>"]
+description = "Tracing and monitoring tool for Linux"
+repository = "https://github.com/e-dant/flaregun"
+readme = "readme.md"
+homepage = "https://github.com/e-dant/flaregun"
+documentation = "https://github.com/e-dant/flaregun"
+license = "MIT"
 
 [lib]
 name = "flaregun"
