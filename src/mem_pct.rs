@@ -55,10 +55,9 @@ impl futures::Stream for MemPct {
         match self.rx.try_recv().ok() {
             Some(ev) => {
                 let mut task: [u8; crate::bpf_constants::TASK_COMM_LEN as usize] =
-                    [' ' as u8; crate::bpf_constants::TASK_COMM_LEN as usize];
-                for i in 0..std::cmp::min(16, self.task.len()) {
-                    task[i] = self.task.as_bytes()[i];
-                }
+                    [b' '; crate::bpf_constants::TASK_COMM_LEN as usize];
+                task[..std::cmp::min(16, self.task.len())]
+                    .copy_from_slice(&self.task.as_bytes()[..std::cmp::min(16, self.task.len())]);
                 let ev = crate::event::Event {
                     time: crate::time::elapsed_since_prog_start(),
                     task,

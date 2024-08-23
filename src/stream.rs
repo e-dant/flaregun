@@ -1,10 +1,10 @@
-// Macro b/c I'm not sure how to write a blanket/default impl for futures::stream
-// (this crate does not own that trait.)
+// Macro b/c easier than a blanket/default impl for futures::stream
+#[allow(clippy::crate_in_macro_def)]
 #[macro_export]
 macro_rules! impl_stream_for {
     ($Prog:ty, $Value:ty) => {
         impl futures::Stream for $Prog {
-            type Item = crate::event::Event<$Value>;
+            type Item = $crate::event::Event<$Value>;
             fn poll_next(
                 self: std::pin::Pin<&mut Self>,
                 ctx: &mut std::task::Context,

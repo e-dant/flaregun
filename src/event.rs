@@ -11,7 +11,10 @@ pub trait FromBytes<Value> {
 }
 
 pub(crate) fn pid_to_name(pid: i32) -> String {
-    std::fs::read_to_string(format!("/proc/{pid}/comm")).unwrap_or("?".to_string()).trim_end().to_string()
+    std::fs::read_to_string(format!("/proc/{pid}/comm"))
+        .unwrap_or("?".to_string())
+        .trim_end()
+        .to_string()
 }
 
 // An automatically-implemented "trait" for from_bytes in the typical case,
@@ -21,15 +24,16 @@ pub(crate) fn pid_to_name(pid: i32) -> String {
 // trait with functions .task() -> String, .pid() -> u32, etc. would be another
 // way to do this (so that we can constrain a FromBytes trait to a CEvent or
 // something, but doing that adds a lot of boilerplate). So, just a macro.
+#[allow(clippy::crate_in_macro_def)]
 #[macro_export]
 macro_rules! impl_from_bytes_for {
     ($Prog:ty, $Value:ty, $c_event_default_func:expr) => {
-        impl crate::event::FromBytes<$Value> for $Prog {
-            fn from_bytes(data: &[u8]) -> crate::event::Event<$Value> {
+        impl $crate::event::FromBytes<$Value> for $Prog {
+            fn from_bytes(data: &[u8]) -> $crate::event::Event<$Value> {
                 let mut event = $c_event_default_func();
                 plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
-                crate::event::Event {
-                    time: crate::time::elapsed_since_prog_start(),
+                $crate::event::Event {
+                    time: $crate::time::elapsed_since_prog_start(),
                     task: event.task,
                     pid: event.pid as u32,
                     value: event.lat_us.into(),

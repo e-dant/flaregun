@@ -30,7 +30,7 @@ impl crate::tool::Tool for BioLat<'_> {
         }
         let mut skel = open_skel.load()?;
         skel.attach()?;
-        let ev_buf = libbpf_rs::PerfBufferBuilder::new(&skel.maps().events())
+        let ev_buf = libbpf_rs::PerfBufferBuilder::new(skel.maps().events())
             .sample_cb(move |_cpu, data| {
                 tx.send(BioLat::from_bytes(data)).unwrap();
             })
