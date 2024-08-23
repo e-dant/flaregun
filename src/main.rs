@@ -81,9 +81,11 @@ fn bytes_to_str(bytes: &[u8]) -> &str {
 
 async fn tty_user_pressed_enter() {
     use tokio::io::AsyncReadExt;
-    let _ = tokio::io::BufReader::new(tokio::io::stdin())
-        .read(&mut [0u8; 0])
-        .await;
+    if atty::is(atty::Stream::Stdin) {
+        let _ = tokio::io::BufReader::new(tokio::io::stdin())
+            .read(&mut [0u8; 0])
+            .await;
+    }
 }
 
 fn show_header(opts: &Cli) {
