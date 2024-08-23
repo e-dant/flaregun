@@ -39,6 +39,9 @@ struct Cli {
     /// Thread group ID ("process group") to trace, or 0 for everything
     #[arg(default_value = "0", long)]
     tgid: i32,
+    /// Show the version and exit
+    #[arg(long)]
+    version: bool,
     /// Verbose debug output
     #[arg(long, short)]
     verbose: bool,
@@ -194,6 +197,10 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let opts = Cli::parse();
+    if opts.version {
+        println!(concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")));
+        return Ok(());
+    }
     tokio::select! {
         _ = tty_user_pressed_enter() => Ok(()),
         r = flaregun(opts) => r,
