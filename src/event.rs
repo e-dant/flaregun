@@ -11,11 +11,7 @@ pub trait FromBytes<Value> {
 }
 
 pub(crate) fn pid_to_name(pid: i32) -> String {
-    let mut name = std::fs::read_to_string(format!("/proc/{}/comm", pid)).unwrap();
-    if name.ends_with('\n') {
-        name.pop();
-    }
-    name
+    std::fs::read_to_string(format!("/proc/{pid}/comm")).unwrap_or("?".to_string()).trim_end().to_string()
 }
 
 // An automatically-implemented "trait" for from_bytes in the typical case,
