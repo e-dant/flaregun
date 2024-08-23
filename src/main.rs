@@ -201,7 +201,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let opts = Cli::parse();
     if opts.version {
-        println!(concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")));
+        println!(concat!(env!("CARGO_PKG_VERSION")));
         return Ok(());
     }
     if opts.just_header {
