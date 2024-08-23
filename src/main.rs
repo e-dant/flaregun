@@ -22,6 +22,13 @@ enum OutputFormat {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum DurationFormat {
+    HhMmSs,
+    HhMmSsMss,
+    Usecs,
+}
+
 #[derive(Debug, Parser)]
 struct Cli {
     /// Some output styles are better for humans (columnar), others for machines (csv, json)
@@ -39,6 +46,9 @@ struct Cli {
     /// Thread group ID ("process group") to trace, or 0 for everything
     #[arg(default_value = "0", long)]
     tgid: i32,
+    /// Format for the duration (since program start) in output
+    #[arg(default_value = "usecs", long)]
+    duration_format: DurationFormat,
     /// Show the version and exit
     #[arg(long)]
     version: bool,
@@ -71,11 +81,24 @@ struct Cli {
     mem_pct: bool,
 }
 
-fn duration_to_string(duration: std::time::Duration) -> String {
+fn duration_to_hh_mm_ss_string(duration: std::time::Duration) -> String {
     let hh = duration.as_secs() / 3600 % 99;
     let mm = (duration.as_secs() / 60) % 60;
     let ss = duration.as_secs() % 60;
     format!("{hh:02}:{mm:02}:{ss:02}")
+}
+
+fn duration_to_hh_mm_ss_mss_string(duration: std::time::Duration) -> String {
+    let hh = duration.as_secs() / 3600 % 99;
+    let mm: u8 = ((duration.as_secs() / 60) % 60).try_into().unwrap();
+    let ss: u8 = (duration.as_secs() % 60).try_into().unwrap();
+    let us = duration.subsec_millis();
+    format!("{hh:02}:{mm:02}:{ss:02}.{us:03}")
+}
+
+fn duration_to_usecs_string(duration: std::time::Duration) -> String {
+    let us = duration.as_micros();
+    format!("{us}")
 }
 
 fn bytes_to_str(bytes: &[u8]) -> &str {
@@ -98,7 +121,7 @@ fn show_header(opts: &Cli) {
     match opts.output_format {
         OutputFormat::Columnar => {
             println!(
-                "{:<8} {:<8} {:<20} {:<8} {:<14}",
+                "{:<8} {:<13} {:<20} {:<8} {:<14}",
                 "TOOL", "TIME", "TASK", "PID", "VALUE"
             );
         }
@@ -112,17 +135,22 @@ fn show_header(opts: &Cli) {
 fn show_event<Value>(
     tool_name: &str,
     output_format: OutputFormat,
+    duration_format: DurationFormat,
     event: &crate::event::Event<Value>,
 ) where
     Value: std::fmt::Display,
 {
-    let d = duration_to_string(event.time);
+    let d = match duration_format {
+        DurationFormat::HhMmSs => duration_to_hh_mm_ss_string(event.time),
+        DurationFormat::HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
+        DurationFormat::Usecs => duration_to_usecs_string(event.time),
+    };
     let t = bytes_to_str(&event.task);
     let p = event.pid;
     let v = &event.value;
     match output_format {
         OutputFormat::Columnar => {
-            println!("{tool_name:<8} {d:<8} {t:<20} {p:<8} {v:<14}");
+            println!("{tool_name:<8} {d:<13} {t:<20} {p:<8} {v:<14}");
         }
         OutputFormat::Csv => {
             println!("{tool_name},{d},{t},{p},{v}",);
@@ -147,7 +175,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 if opts.all || opts.$opt {
                     let mut prog = $prog::try_new(Some($cfg)).unwrap();
                     while let Some(event) = prog.next().await {
-                        show_event(stringify!($opt), opts.output_format, &event);
+                        show_event(stringify!($opt), opts.output_format, opts.duration_format, &event);
                     }
                 }
             })
