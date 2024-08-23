@@ -1,6 +1,6 @@
 [package]
 name = "flaregun"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Will <edant.io@protonmail.com>"]
 description = "Tracing and monitoring tool for Linux"

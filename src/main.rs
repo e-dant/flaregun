@@ -45,8 +45,11 @@ struct Cli {
     /// Verbose debug output
     #[arg(long, short)]
     verbose: bool,
+    /// Show a header and exit, precedence after --version
+    #[arg(long)]
+    just_header: bool,
     /// Show a header (TOOL TIME TASK PID VALUE) as the first time of output
-    #[arg(default_value = "false", long)]
+    #[arg(long)]
     header: bool,
     /// Enable all tracing and monitoring tools
     #[arg(long, short)]
@@ -199,6 +202,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = Cli::parse();
     if opts.version {
         println!(concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")));
+        return Ok(());
+    }
+    if opts.just_header {
+        show_header(&opts);
         return Ok(());
     }
     tokio::select! {
