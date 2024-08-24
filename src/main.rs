@@ -9,6 +9,7 @@ mod fs_lat;
 mod mem_pct;
 mod rlimit;
 mod rq_lat;
+mod tcp_pkt_lat;
 mod stream;
 mod time;
 mod tool;
@@ -51,12 +52,18 @@ struct Cli {
     tgid: i32,
     /// Trace latency higher than this value
     ///
-    /// Affects '--bio_lat', '--rq_lat' and '--fs-lat'
+    /// Affects:
+    /// - '--bio-lat'
+    /// - '--rq-lat'
+    /// - '--fs-lat'
+    /// - '--tcp-pkt-lat'
     #[arg(default_value = "10000", long, short = 'l', verbatim_doc_comment)]
     min_lat_us: u64,
     /// For monitoring tools, stats will be reported at this interval
     ///
-    /// Affects '--cpu-pct' and '--mem-pct'
+    /// Affects:
+    /// - '--cpu-pct'
+    /// - '--mem-pct'
     #[arg(default_value = "1000", long, short = 'i', verbatim_doc_comment)]
     reporting_interval_ms: u64,
     /// Enable all tracing and monitoring tools.
@@ -71,6 +78,9 @@ struct Cli {
     /// Enable file system latency tracing
     #[arg(long)]
     fs_lat: bool,
+    /// Enable TCP packet latency tracing
+    #[arg(long)]
+    tcp_pkt_lat: bool,
     /// Enable cpu utilization % monitoring
     #[arg(long)]
     cpu_pct: bool,
@@ -186,6 +196,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     use crate::fs_lat::FsLat;
     use crate::mem_pct::MemPct;
     use crate::rq_lat::RqLat;
+    use crate::tcp_pkt_lat::TcpPktLat;
     use crate::tool::Tool;
     use futures::StreamExt;
     let cfg = crate::cfg::Cfg {
@@ -232,6 +243,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
         r = tool_task!(fs_lat, FsLat) => r,
         r = tool_task!(mem_pct, MemPct) => r,
         r = tool_task!(rq_lat, RqLat) => r,
+        r = tool_task!(tcp_pkt_lat, TcpPktLat) => r,
     }??)
 }
 
