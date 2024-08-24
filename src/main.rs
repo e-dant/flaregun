@@ -30,7 +30,7 @@ enum DurationFormat {
 #[derive(Debug, Parser)]
 #[clap(version, long_about = "Tracing and monitoring tools for Linux")]
 struct Cli {
-    /// Process ID to trace, or 0 for everything.
+    /// Process ID to trace, or 0 for everything
     ///
     /// +--process-A-+ --(fork)-> +--process-B-+ --(thread)-> +--process-B-+
     /// |  pid  43   |         !> |  pid  42   |              |  pid  42   |
@@ -44,15 +44,19 @@ struct Cli {
     /// (The meaning of pid and tgid is reversed in kernel-land.)
     #[arg(default_value = "0", long, short, verbatim_doc_comment)]
     pid: i32,
-    /// See `--pid` for details.
+    /// Thread ID to trace
+    ///
+    /// See '--pid' for more.
     #[arg(default_value = "0", long)]
     tgid: i32,
-    /// Trace latency higher than this value.
-    /// Affects `bio_lat`, `rq_lat` and `fs_lat`.
+    /// Trace latency higher than this value
+    ///
+    /// Affects '--bio_lat', '--rq_lat' and '--fs-lat'
     #[arg(default_value = "10000", long, short = 'l', verbatim_doc_comment)]
     min_lat_us: u64,
-    /// For monitoring tools, stats will be reported at this interval.
-    /// Affects `cpu_pct` and `mem_pct`.
+    /// For monitoring tools, stats will be reported at this interval
+    ///
+    /// Affects '--cpu-pct' and '--mem-pct'
     #[arg(default_value = "1000", long, short = 'i', verbatim_doc_comment)]
     reporting_interval_ms: u64,
     /// Enable all tracing and monitoring tools.
@@ -61,33 +65,42 @@ struct Cli {
     /// Enable block and character device i/o latency tracing.
     #[arg(long)]
     bio_lat: bool,
-    /// Enable run queue latency tracing.
+    /// Enable run queue latency tracing
     #[arg(long)]
     rq_lat: bool,
-    /// Enable file system latency tracing.
+    /// Enable file system latency tracing
     #[arg(long)]
     fs_lat: bool,
-    /// Enable cpu utilization % monitoring.
+    /// Enable cpu utilization % monitoring
     #[arg(long)]
     cpu_pct: bool,
-    /// Enable virtual memory utilization % monitoring.
+    /// Enable virtual memory utilization % monitoring
     #[arg(long)]
     mem_pct: bool,
-    /// Some output styles are better for humans (columnar).
-    /// Others are better for machines (csv, json).
+    /// Some output styles are better for humans (columnar), others for machines
+    ///
+    /// - columnar
+    ///   cpu_pct  101410        systemd              1        0.00
+    /// - csv
+    ///   cpu_pct,101459,systemd,1,0.00
+    /// - json
+    ///   {"tool":"cpu_pct","time":"101363","task":"systemd","pid":1,"value":0.00}
     #[arg(default_value = "columnar", long, short = 'f', verbatim_doc_comment)]
     output_format: OutputFormat,
-    /// Output format for the duration since this program's start.
+    /// Output format for the duration since this program's start
+    ///
     /// This is not the duration since the target process(es) or threads began.
-    #[arg(default_value = "usecs", long)]
+    #[arg(default_value = "usecs", long, verbatim_doc_comment)]
     duration_format: DurationFormat,
-    /// Show a header (tool/time/task/pid/value) as the first time of output.
-    /// Has no effect when the output format (`-f, --output-format`) is json.
+    /// Show a header (tool/time/task/pid/value) as the first time of output
+    ///
+    /// Has no effect when the output format ('-f, --output-format') is json.
     /// Formatted according to the output format.
     #[arg(long, verbatim_doc_comment)]
     header: bool,
-    /// Show a header and exit. Option `-V, --version` has precedence.
-    /// See also `--header`.
+    /// Show a header and exit ('-V, --version' has precedence)
+    ///
+    /// See '--header' for more.
     #[arg(long, verbatim_doc_comment)]
     just_header: bool,
 }
