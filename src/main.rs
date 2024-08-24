@@ -2,6 +2,7 @@
 use clap::Parser;
 mod bio_lat;
 mod bpf_constants;
+mod cfg;
 mod cpu_pct;
 mod event;
 mod fs_lat;
@@ -114,6 +115,9 @@ async fn tty_user_pressed_enter() {
         let _ = tokio::io::BufReader::new(tokio::io::stdin())
             .read(&mut [0u8; 0])
             .await;
+    } else {
+        // Wait forever
+        tokio::sync::Semaphore::new(0).acquire().await.ok();
     }
 }
 
@@ -169,20 +173,26 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     use crate::rq_lat::RqLat;
     use crate::tool::Tool;
     use futures::StreamExt;
-    macro_rules! prog_task {
+    macro_rules! tool_task {
         ($opt:ident, $prog:ident, $cfg:expr) => {
             tokio::spawn(async move {
                 if opts.all || opts.$opt {
                     let mut prog = $prog::try_new(Some($cfg)).unwrap();
                     while let Some(event) = prog.next().await {
-                        show_event(stringify!($opt), opts.output_format, opts.duration_format, &event);
+                        show_event(
+                            stringify!($opt),
+                            opts.output_format,
+                            opts.duration_format,
+                            &event,
+                        );
                     }
                 }
             })
         };
     }
-    let bio_lat_cfg = bio_lat::Cfg {
+    let cfg = crate::cfg::Cfg {
         min_lat_us: opts.min_lat_us,
+        targ_reporting_interval_ms: opts.reporting_interval_ms,
         targ_pid: opts.pid,
         targ_tgid: opts.tgid,
         targ_dev: 0,
@@ -190,36 +200,16 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
         targ_filter_cgroup: false,
         targ_filter_queued: false,
     };
-    let cpu_pct_cfg = cpu_pct::Cfg {
-        targ_pid: opts.pid,
-        targ_tgid: opts.tgid,
-        targ_reporting_interval_ms: opts.reporting_interval_ms,
-    };
-    let fs_lat_cfg = fs_lat::Cfg {
-        min_lat_us: opts.min_lat_us,
-        targ_pid: opts.pid,
-        targ_tgid: opts.tgid,
-    };
-    let mem_pct_cfg = mem_pct::Cfg {
-        targ_pid: opts.pid,
-        targ_tgid: opts.tgid,
-        targ_reporting_interval_ms: opts.reporting_interval_ms,
-    };
-    let rq_lat_cfg = rq_lat::Cfg {
-        min_lat_us: opts.min_lat_us,
-        targ_pid: opts.pid,
-        targ_tgid: opts.tgid,
-    };
-    rlimit::must_bump_memlock_rlimit_once();
     if opts.header {
         show_header(&opts);
     }
+    rlimit::must_bump_memlock_rlimit_once();
     tokio::try_join!(
-        prog_task!(bio_lat, BioLat, bio_lat_cfg),
-        prog_task!(cpu_pct, CpuPct, cpu_pct_cfg),
-        prog_task!(fs_lat, FsLat, fs_lat_cfg),
-        prog_task!(mem_pct, MemPct, mem_pct_cfg),
-        prog_task!(rq_lat, RqLat, rq_lat_cfg)
+        tool_task!(bio_lat, BioLat, cfg),
+        tool_task!(cpu_pct, CpuPct, cfg),
+        tool_task!(fs_lat, FsLat, cfg),
+        tool_task!(mem_pct, MemPct, cfg),
+        tool_task!(rq_lat, RqLat, cfg)
     )?;
     Ok(())
 }

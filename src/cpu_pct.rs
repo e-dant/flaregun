@@ -1,18 +1,14 @@
-#[derive(Clone, Copy)]
-pub struct Cfg {
-    pub targ_pid: i32,
-    pub targ_tgid: i32,
-    pub targ_reporting_interval_ms: u64,
-}
-
 pub struct CpuPct {
-    cfg: Cfg,
+    cfg: crate::cfg::Cfg,
     rx: std::sync::mpsc::Receiver<f32>,
     task: String,
     _collector_task: tokio::task::JoinHandle<()>,
 }
 
-fn spawn_collector(tx: std::sync::mpsc::Sender<f32>, cfg: Cfg) -> tokio::task::JoinHandle<()> {
+fn spawn_collector(
+    tx: std::sync::mpsc::Sender<f32>,
+    cfg: crate::cfg::Cfg,
+) -> tokio::task::JoinHandle<()> {
     tokio::task::spawn_blocking(move || {
         let ms = std::time::Duration::from_millis(cfg.targ_reporting_interval_ms);
         let mut p = psutil::process::Process::new(cfg.targ_pid as u32).unwrap();
@@ -27,8 +23,7 @@ fn spawn_collector(tx: std::sync::mpsc::Sender<f32>, cfg: Cfg) -> tokio::task::J
 }
 
 impl crate::tool::Tool for CpuPct {
-    type Cfg = Cfg;
-    fn try_new(cfg: Option<Cfg>) -> Result<Self, Box<dyn std::error::Error>> {
+    fn try_new(cfg: Option<crate::cfg::Cfg>) -> Result<Self, Box<dyn std::error::Error>> {
         let (tx, rx) = std::sync::mpsc::channel();
         let cfg = match cfg {
             Some(cfg) => cfg,

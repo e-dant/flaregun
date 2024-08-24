@@ -27,10 +27,10 @@ pub(crate) fn pid_to_name(pid: i32) -> String {
 #[allow(clippy::crate_in_macro_def)]
 #[macro_export]
 macro_rules! impl_from_bytes_for {
-    ($Prog:ty, $Value:ty, $c_event_default_func:expr) => {
+    ($Prog:ty, $Value:ty, $CEvent:ty) => {
         impl $crate::event::FromBytes<$Value> for $Prog {
             fn from_bytes(data: &[u8]) -> $crate::event::Event<$Value> {
-                let mut event = $c_event_default_func();
+                let mut event = <$CEvent>::default();
                 plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
                 $crate::event::Event {
                     time: $crate::time::elapsed_since_prog_start(),
