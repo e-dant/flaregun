@@ -1,2 +1,2 @@
 #pragma once
-#define TASK_COMM_LEN 20
+#define FL_TASK_COMM_LEN 20

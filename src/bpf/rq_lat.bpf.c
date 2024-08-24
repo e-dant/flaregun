@@ -12,7 +12,7 @@ const volatile pid_t targ_pid = 0;
 const volatile pid_t targ_tgid = 0;
 
 struct event {
-	u8 task[TASK_COMM_LEN];
+	u8 task[FL_TASK_COMM_LEN];
 	__u64 lat_us;
 	pid_t pid;
 } _event = {0};

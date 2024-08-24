@@ -28,55 +28,68 @@ enum DurationFormat {
 }
 
 #[derive(Debug, Parser)]
+#[clap(version, long_about = "Tracing and monitoring tools for Linux")]
 struct Cli {
-    /// Some output styles are better for humans (columnar), others for machines (csv, json)
-    #[arg(default_value = "columnar", long, short = 'f')]
-    output_format: OutputFormat,
-    /// Trace latency higher than this value (for latency-based tools)
-    #[arg(default_value = "10000", long, short = 'l')]
-    min_lat_us: u64,
-    /// Report at this interval (for relevant tools)
-    #[arg(default_value = "1000", long, short = 'i')]
-    reporting_interval_ms: u64,
-    /// "Process" (thread) ID to trace, or 0 for everything
-    #[arg(default_value = "0", long, short)]
+    /// Process ID to trace, or 0 for everything.
+    ///
+    /// +--process-A-+ --(fork)-> +--process-B-+ --(thread)-> +--process-B-+
+    /// |  pid  43   |         !> |  pid  42   |              |  pid  42   |
+    /// |  tgid 43   |         !> |  tgid 42   |           !> |  tgid 44   |
+    /// +-thread-1/1-+            +-thread-1/2-+              +-thread-2/2-+
+    ///
+    /// - `$ fl --pid 42` would monitor process B and all of its threads.
+    /// - `$ fl --tgid 44` would monitor process B's second thread.
+    ///
+    /// This diagram represents the common meaning of pid and tgid to the user.
+    /// (The meaning of pid and tgid is reversed in kernel-land.)
+    #[arg(default_value = "0", long, short, verbatim_doc_comment)]
     pid: i32,
-    /// Thread group ID ("process group") to trace, or 0 for everything
+    /// See `--pid` for details.
     #[arg(default_value = "0", long)]
     tgid: i32,
-    /// Format for the duration (since program start) in output
-    #[arg(default_value = "usecs", long)]
-    duration_format: DurationFormat,
-    /// Show the version and exit
-    #[arg(long)]
-    version: bool,
-    /// Verbose debug output
-    #[arg(long, short)]
-    verbose: bool,
-    /// Show a header and exit, precedence after --version
-    #[arg(long)]
-    just_header: bool,
-    /// Show a header (TOOL TIME TASK PID VALUE) as the first time of output
-    #[arg(long)]
-    header: bool,
-    /// Enable all tracing and monitoring tools
+    /// Trace latency higher than this value.
+    /// Affects `bio_lat`, `rq_lat` and `fs_lat`.
+    #[arg(default_value = "10000", long, short = 'l', verbatim_doc_comment)]
+    min_lat_us: u64,
+    /// For monitoring tools, stats will be reported at this interval.
+    /// Affects `cpu_pct` and `mem_pct`.
+    #[arg(default_value = "1000", long, short = 'i', verbatim_doc_comment)]
+    reporting_interval_ms: u64,
+    /// Enable all tracing and monitoring tools.
     #[arg(long, short)]
     all: bool,
-    /// Enable block i/o latency tracing
+    /// Enable block and character device i/o latency tracing.
     #[arg(long)]
     bio_lat: bool,
-    /// Enable run queue latency tracing
+    /// Enable run queue latency tracing.
     #[arg(long)]
     rq_lat: bool,
-    /// Enable file system latency tracing
+    /// Enable file system latency tracing.
     #[arg(long)]
     fs_lat: bool,
-    /// Enable CPU utilization monitoring
+    /// Enable cpu utilization % monitoring.
     #[arg(long)]
     cpu_pct: bool,
-    /// Enable (virtual) memory utilization monitoring
+    /// Enable virtual memory utilization % monitoring.
     #[arg(long)]
     mem_pct: bool,
+    /// Some output styles are better for humans (columnar).
+    /// Others are better for machines (csv, json).
+    #[arg(default_value = "columnar", long, short = 'f', verbatim_doc_comment)]
+    output_format: OutputFormat,
+    /// Output format for the duration since this program's start.
+    /// This is not the duration since the target process(es) or threads began.
+    #[arg(default_value = "usecs", long)]
+    duration_format: DurationFormat,
+    /// Show a header (tool/time/task/pid/value) as the first time of output.
+    /// Has no effect when the output format (`-f, --output-format`) is json.
+    /// Formatted according to the output format.
+    #[arg(long, verbatim_doc_comment)]
+    header: bool,
+    /// Show a header and exit. Option `-V, --version` has precedence.
+    /// See also `--header`.
+    #[arg(long, verbatim_doc_comment)]
+    just_header: bool,
 }
 
 fn duration_to_hh_mm_ss_string(duration: std::time::Duration) -> String {
@@ -106,16 +119,8 @@ fn bytes_to_str(bytes: &[u8]) -> &str {
         .trim()
 }
 
-async fn tty_user_pressed_enter() {
-    use tokio::io::AsyncReadExt;
-    if atty::is(atty::Stream::Stdin) {
-        let _ = tokio::io::BufReader::new(tokio::io::stdin())
-            .read(&mut [0u8; 0])
-            .await;
-    } else {
-        // Wait forever
-        tokio::sync::Semaphore::new(0).acquire().await.ok();
-    }
+async fn forever() {
+    tokio::sync::Semaphore::new(0).acquire().await.ok();
 }
 
 fn show_header(opts: &Cli) {
@@ -170,23 +175,6 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     use crate::rq_lat::RqLat;
     use crate::tool::Tool;
     use futures::StreamExt;
-    macro_rules! tool_task {
-        ($opt:ident, $prog:ident, $cfg:expr) => {
-            tokio::spawn(async move {
-                if opts.all || opts.$opt {
-                    let mut prog = $prog::try_new(Some($cfg)).unwrap();
-                    while let Some(event) = prog.next().await {
-                        show_event(
-                            stringify!($opt),
-                            opts.output_format,
-                            opts.duration_format,
-                            &event,
-                        );
-                    }
-                }
-            })
-        };
-    }
     let cfg = crate::cfg::Cfg {
         min_lat_us: opts.min_lat_us,
         targ_reporting_interval_ms: opts.reporting_interval_ms,
@@ -197,34 +185,51 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
         targ_filter_cgroup: false,
         targ_filter_queued: false,
     };
+    macro_rules! tool_task {
+        ($opt:ident, $prog:ident) => {
+            tokio::spawn(async move {
+                if opts.all || opts.$opt {
+                    let mut prog = $prog::try_new(cfg)?;
+                    while let Some(event) = prog.next().await {
+                        show_event(
+                            stringify!($opt),
+                            opts.output_format,
+                            opts.duration_format,
+                            &event,
+                        );
+                    }
+                } else {
+                    forever().await;
+                }
+                let m = "Task ended, but not because of the user";
+                Err(crate::tool::Error::Runtime(m))
+            })
+        };
+    }
     if opts.header {
         show_header(&opts);
     }
+    if opts.just_header {
+        return Ok(());
+    }
     rlimit::must_bump_memlock_rlimit_once();
-    tokio::try_join!(
-        tool_task!(bio_lat, BioLat, cfg),
-        tool_task!(cpu_pct, CpuPct, cfg),
-        tool_task!(fs_lat, FsLat, cfg),
-        tool_task!(mem_pct, MemPct, cfg),
-        tool_task!(rq_lat, RqLat, cfg)
-    )?;
-    Ok(())
+    Ok(tokio::select! {
+        r = tool_task!(bio_lat, BioLat) => r,
+        r = tool_task!(cpu_pct, CpuPct) => r,
+        r = tool_task!(fs_lat, FsLat) => r,
+        r = tool_task!(mem_pct, MemPct) => r,
+        r = tool_task!(rq_lat, RqLat) => r,
+    }??)
 }
 
+#[allow(clippy::unit_arg)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let opts = Cli::parse();
-    if opts.version {
-        println!(env!("CARGO_PKG_VERSION"));
-        return Ok(());
-    }
-    if opts.just_header {
-        show_header(&opts);
-        return Ok(());
-    }
-    tokio::select! {
-        _ = tty_user_pressed_enter() => Ok(()),
-        r = flaregun(opts) => r,
-    }
+    let _ = crate::time::prog_start();
+    Ok(tokio::select! {
+        r = flaregun(opts) => r?,
+        _ = tokio::signal::ctrl_c() => (),
+    })
 }

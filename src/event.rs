@@ -33,7 +33,7 @@ macro_rules! impl_from_bytes_for {
                 let mut event = <$CEvent>::default();
                 plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
                 $crate::event::Event {
-                    time: $crate::time::elapsed_since_prog_start(),
+                    time: $crate::time::prog_start().elapsed(),
                     task: event.task,
                     pid: event.pid as u32,
                     value: event.lat_us.into(),

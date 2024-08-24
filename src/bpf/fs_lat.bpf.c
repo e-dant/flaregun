@@ -37,7 +37,7 @@ struct event {
   pid_t pid;
   u8 op;
   u8 file[FILE_NAME_LEN];
-  u8 task[TASK_COMM_LEN];
+  u8 task[FL_TASK_COMM_LEN];
 } _event = {};
 
 struct data {

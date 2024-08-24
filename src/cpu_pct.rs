@@ -23,21 +23,19 @@ fn spawn_collector(
 }
 
 impl crate::tool::Tool for CpuPct {
-    fn try_new(cfg: Option<crate::cfg::Cfg>) -> Result<Self, Box<dyn std::error::Error>> {
+    fn try_new(cfg: crate::cfg::Cfg) -> Result<Self, crate::tool::Error> {
         let (tx, rx) = std::sync::mpsc::channel();
-        let cfg = match cfg {
-            Some(cfg) => cfg,
-            None => return Err("Configuration must be provided for CpuPct".into()),
-        };
         if cfg.targ_pid == 0 && cfg.targ_tgid == 0 {
-            return Err("Either pid or tgid must be specified".into());
+            let m = "Either pid or tgid must be specified for tool CpuPct";
+            Err(crate::tool::Error::Misconfig(m))
+        } else {
+            Ok(Self {
+                cfg,
+                rx,
+                task: crate::event::pid_to_name(cfg.targ_pid),
+                _collector_task: spawn_collector(tx, cfg),
+            })
         }
-        Ok(Self {
-            cfg,
-            rx,
-            task: crate::event::pid_to_name(cfg.targ_pid),
-            _collector_task: spawn_collector(tx, cfg),
-        })
     }
 }
 
@@ -54,7 +52,7 @@ impl futures::Stream for CpuPct {
                 task[..std::cmp::min(16, self.task.len())]
                     .copy_from_slice(&self.task.as_bytes()[..std::cmp::min(16, self.task.len())]);
                 let ev = crate::event::Event {
-                    time: crate::time::elapsed_since_prog_start(),
+                    time: crate::time::prog_start().elapsed(),
                     task,
                     pid: self.cfg.targ_pid as u32,
                     value: format!("{:00.02}", ev),

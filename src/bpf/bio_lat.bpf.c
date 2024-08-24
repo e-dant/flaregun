@@ -5,6 +5,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
+
+
 #include "core_fixes.bpf.h"
 
 #define MAX_ENTRIES	10240
@@ -25,7 +27,7 @@ const volatile pid_t targ_tgid = 0;
 const volatile __u64 min_lat_us = 0;
 
 struct event {
-  u8 task[TASK_COMM_LEN];
+  u8 task[FL_TASK_COMM_LEN];
   __u64 lat_us;
   __u64 q_lat_us;
   __u64 ts;
@@ -164,7 +166,7 @@ int BPF_PROG(block_rq_complete, struct request *rq, int error,
 		goto cleanup;
   struct piddata piddata = {};
   if (current_piddata(rq, &piddata))
-    return 0;
+    goto cleanup;
   bpf_get_current_comm(&event.task, sizeof(event.task));
   event.pid = piddata.pid;
 	event.lat_us = delta_us;
