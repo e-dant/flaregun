@@ -9,9 +9,6 @@ mod fs_lat;
 mod mem_pct;
 mod rlimit;
 mod rq_lat;
-mod skel_bio_lat;
-mod skel_fs_lat;
-mod skel_rq_lat;
 mod stream;
 mod time;
 mod tool;
@@ -219,7 +216,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let opts = Cli::parse();
     if opts.version {
-        println!(concat!(env!("CARGO_PKG_VERSION")));
+        println!(env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     if opts.just_header {

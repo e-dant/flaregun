@@ -1,7 +1,4 @@
 mod bpf_constants;
-mod skel_bio_lat;
-mod skel_fs_lat;
-mod skel_rq_lat;
 mod stream;
 mod time;
 
