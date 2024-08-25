@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+</head>
+
+<body>
+    <div>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+        <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+        <div id="plotly-html-element" class="plotly-graph-div" style="height:100%; width:100%;"></div>
+
+        <script type="module">
+            const graph_div = document.getElementById("plotly-html-element");
+            await Plotly.newPlot(graph_div, {
+  "data": [
+    {
+      "type": "scatter",
+      "name": "cpu_pct",
+      "mode": "lines+markers",
+      "x": [
+        310585,
+        1122704,
+        2135648,
+        3150586,
+        4061414,
+        5076637
+      ],
+      "y": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "type": "scatter",
+      "name": "mem_pct",
+      "mode": "lines+markers",
+      "x": [
+        310646,
+        1223276,
+        2237186,
+        3150923,
+        4163192,
+        5177313
+      ],
+      "y": [
+        0.71,
+        0.71,
+        0.71,
+        0.71,
+        0.71,
+        0.71
+      ]
+    },
+    {
+      "type": "scatter",
+      "name": "rq_lat",
+      "mode": "lines+markers",
+      "x": [
+        4061696,
+        4568995,
+        4569000,
+        4569001,
+        4873205,
+        4873207,
+        4974935,
+        4974937
+      ],
+      "y": [
+        139.0,
+        13.0,
+        18.0,
+        16.0,
+        13.0,
+        21.0,
+        16.0,
+        16.0
+      ]
+    },
+    {
+      "type": "scatter",
+      "name": "fs_lat",
+      "mode": "lines+markers",
+      "x": [
+        4974862
+      ],
+      "y": [
+        24.0
+      ]
+    },
+    {
+      "type": "scatter",
+      "name": "tcp_pkt_lat",
+      "mode": "lines+markers",
+      "x": [
+        4569239,
+        4569247,
+        4975016,
+        4975017
+      ],
+      "y": [
+        47.0,
+        52.0,
+        50.0,
+        39.0
+      ]
+    }
+  ],
+  "layout": {},
+  "config": {}
+});
+        </script>
+    </div>
+</body>
+
+</html>

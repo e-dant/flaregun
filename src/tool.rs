@@ -81,7 +81,8 @@ macro_rules! impl_tool_for_ring_buf_bpf_prog {
                 rb.add(maps.events(), move |data| {
                     tx.send($Tool::from_bytes(data)).unwrap();
                     return 0;
-                }).map_err(|_| Error::Libbpf)?;
+                })
+                .map_err(|_| Error::Libbpf)?;
                 let ev_buf = rb.build().map_err(|_| Error::Libbpf)?;
                 Ok(Self {
                     _skel: skel,

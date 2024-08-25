@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 use clap::Parser;
-mod bio_lat;
-mod bpf_constants;
-mod cfg;
-mod cpu_pct;
-mod event;
-mod fs_lat;
-mod mem_pct;
-mod rlimit;
-mod rq_lat;
-mod tcp_pkt_lat;
-mod stream;
-mod time;
-mod tool;
+extern crate flaregun;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 enum OutputFormat {
@@ -147,28 +135,26 @@ async fn forever() {
 }
 
 fn show_header(opts: &Cli) {
+    use OutputFormat::*;
     match opts.output_format {
-        OutputFormat::Columnar => {
-            println!(
-                "{:<8} {:<13} {:<20} {:<8} {:<14}",
-                "TOOL", "TIME", "TASK", "PID", "VALUE"
-            );
-        }
-        OutputFormat::Csv => {
-            println!("TOOL,TIME,TASK,PID,VALUE");
-        }
-        OutputFormat::Json => (),
+        Columnar => println!(
+            "{:<8} {:<13} {:<20} {:<8} {:<14}",
+            "tool", "time", "task", "pid", "value"
+        ),
+        Csv => println!("tool,time,task,pid,value"),
+        Json => (),
     }
 }
 
 fn show_event<Value>(
-    tool_name: &str,
+    tool: &str,
     output_format: OutputFormat,
     duration_format: DurationFormat,
-    event: &crate::event::Event<Value>,
+    event: &flaregun::Event<Value>,
 ) where
     Value: std::fmt::Display,
 {
+    use OutputFormat::*;
     let d = match duration_format {
         DurationFormat::HhMmSs => duration_to_hh_mm_ss_string(event.time),
         DurationFormat::HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
@@ -178,28 +164,22 @@ fn show_event<Value>(
     let p = event.pid;
     let v = &event.value;
     match output_format {
-        OutputFormat::Columnar => {
-            println!("{tool_name:<8} {d:<13} {t:<20} {p:<8} {v:<14}");
-        }
-        OutputFormat::Csv => {
-            println!("{tool_name},{d},{t},{p},{v}",);
-        }
-        OutputFormat::Json => {
-            println!(r#"{{"tool":"{tool_name}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#,);
-        }
+        Columnar => println!("{tool:<8} {d:<13} {t:<20} {p:<8} {v:<14}"),
+        Csv => println!("{tool},{d},{t},{p},{v}"),
+        Json => println!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
     }
 }
 
 async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::bio_lat::BioLat;
-    use crate::cpu_pct::CpuPct;
-    use crate::fs_lat::FsLat;
-    use crate::mem_pct::MemPct;
-    use crate::rq_lat::RqLat;
-    use crate::tcp_pkt_lat::TcpPktLat;
-    use crate::tool::Tool;
+    use flaregun::tool::Tool;
+    use flaregun::BioLat;
+    use flaregun::CpuPct;
+    use flaregun::FsLat;
+    use flaregun::MemPct;
+    use flaregun::RqLat;
+    use flaregun::TcpPktLat;
     use futures::StreamExt;
-    let cfg = crate::cfg::Cfg {
+    let cfg = flaregun::Cfg {
         min_lat_us: opts.min_lat_us,
         targ_reporting_interval_ms: opts.reporting_interval_ms,
         targ_pid: opts.pid,
@@ -226,17 +206,17 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     forever().await;
                 }
                 let m = "Task ended, but not because of the user";
-                Err(crate::tool::Error::Runtime(m))
+                Err(flaregun::tool::Error::Runtime(m))
             })
         };
     }
-    if opts.header {
+    if opts.header || opts.just_header {
         show_header(&opts);
     }
     if opts.just_header {
         return Ok(());
     }
-    rlimit::must_bump_memlock_rlimit_once();
+    flaregun::must_bump_memlock_rlimit_once();
     Ok(tokio::select! {
         r = tool_task!(bio_lat, BioLat) => r,
         r = tool_task!(cpu_pct, CpuPct) => r,
@@ -252,7 +232,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let opts = Cli::parse();
-    let _ = crate::time::prog_start();
+    let _ = flaregun::time::prog_start();
     Ok(tokio::select! {
         r = flaregun(opts) => r?,
         _ = tokio::signal::ctrl_c() => (),
