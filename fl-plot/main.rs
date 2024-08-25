@@ -22,15 +22,17 @@ struct Event {
     value: f64,
 }
 
+type PlottableByTool = HashMap<String, Vec<(u64, f64)>>;
+
 fn many_plottable_from_csv_file_by_tool(
     file_path: &str,
-) -> Result<HashMap<String, Vec<(u64, f64)>>, Box<dyn std::error::Error>> {
+) -> Result<PlottableByTool, Box<dyn std::error::Error>> {
     let mut rdr = csv::ReaderBuilder::new().from_reader(std::fs::File::open(file_path)?);
-    let mut evs = HashMap::new();
+    let mut evs = PlottableByTool::new();
     for r in rdr.deserialize::<Event>() {
         match r {
             Ok(event) => {
-                let entry = evs.entry(event.tool.clone()).or_insert(Vec::new());
+                let entry = evs.entry(event.tool.clone()).or_default();
                 entry.push((event.time, event.value));
             }
             Err(e) => log::error!("Error parsing CSV: {e} in {file_path}"),

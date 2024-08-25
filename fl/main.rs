@@ -143,7 +143,11 @@ fn show_header(opts: &Cli) {
     match opts.output_format {
         Columnar => outf::outfprintln!(
             "{:<12} {:<13} {:<20} {:<8} {:<14}",
-            "tool", "time", "task", "pid", "value"
+            "tool",
+            "time",
+            "task",
+            "pid",
+            "value"
         ),
         Csv => outf::outfprintln!("tool,time,task,pid,value"),
         Json => (),
@@ -171,7 +175,9 @@ fn show_event<Value>(
     match output_format {
         Columnar => outf::outfprintln!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
         Csv => outf::outfprintln!("{tool},{d},{t},{p},{v}"),
-        Json => outf::outfprintln!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
+        Json => outf::outfprintln!(
+            r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#
+        ),
     }
 }
 

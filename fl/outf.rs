@@ -27,8 +27,8 @@ pub fn try_write_line(s: &str) -> Result<(), std::io::Error> {
     match OUTF.lock() {
         Ok(file) => match file.as_ref() {
             Some(mut file) => writeln!(file, "{s}"),
-            None => Ok(println!("{s}"))
-        }
+            None => Ok(println!("{s}")),
+        },
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "Failed to lock output file",
