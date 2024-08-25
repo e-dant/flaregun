@@ -4,12 +4,19 @@ version = "0.3.1"
 edition = "2021"
 authors = ["Will <edant.io@protonmail.com>"]
 description = "Tracing and monitoring tools for Linux"
-repository = "https://github.com/e-dant/flaregun"
-readme = "readme.md"
-homepage = "https://github.com/e-dant/flaregun"
 documentation = "https://github.com/e-dant/flaregun"
-license = "MIT"
-keywords = ["cli", "bpf", "performance", "tracing", "monitoring", "linux", "plot"]
+homepage = "https://github.com/e-dant/flaregun"
+keywords = ["cli", "bpf", "performance", "tracing"]
+categories = [
+  "command-line-interface",
+  "command-line-utilities"
+  "development-tools::debugging",
+  "development-tools::profiling",
+  "asynchronous",
+]
+license = "LGPL-2.1 OR BSD-2-Clause"
+readme = "readme.md"
+repository = "https://github.com/e-dant/flaregun"
 
 [lib]
 name = "flaregun"
