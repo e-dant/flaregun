@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 use clap::Parser;
+mod outf;
 extern crate flaregun;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -31,12 +32,12 @@ struct Cli {
     ///
     /// This diagram represents the common meaning of pid and tgid to the user.
     /// (The meaning of pid and tgid is reversed in kernel-land.)
-    #[arg(default_value = "0", long, short, verbatim_doc_comment)]
+    #[arg(long, short, default_value = "0", verbatim_doc_comment)]
     pid: i32,
     /// Thread ID to trace
     ///
     /// See '--pid' for more.
-    #[arg(default_value = "0", long)]
+    #[arg(long, default_value = "0")]
     tgid: i32,
     /// Trace latency higher than this value
     ///
@@ -45,14 +46,14 @@ struct Cli {
     /// - '--rq-lat'
     /// - '--fs-lat'
     /// - '--tcp-pkt-lat'
-    #[arg(default_value = "10000", long, short = 'l', verbatim_doc_comment)]
+    #[arg(long, short = 'l', default_value = "10000", verbatim_doc_comment)]
     min_lat_us: u64,
     /// For monitoring tools, stats will be reported at this interval
     ///
     /// Affects:
     /// - '--cpu-pct'
     /// - '--mem-pct'
-    #[arg(default_value = "1000", long, short = 'i', verbatim_doc_comment)]
+    #[arg(long, short = 'i', default_value = "1000", verbatim_doc_comment)]
     reporting_interval_ms: u64,
     /// Enable all tracing and monitoring tools.
     #[arg(long, short)]
@@ -83,23 +84,26 @@ struct Cli {
     ///   cpu_pct,101459,systemd,1,0.00
     /// - json
     ///   {"tool":"cpu_pct","time":"101363","task":"systemd","pid":1,"value":0.00}
-    #[arg(default_value = "columnar", long, short = 'f', verbatim_doc_comment)]
+    #[arg(long, short = 'f', default_value = "columnar", verbatim_doc_comment)]
     output_format: OutputFormat,
     /// Output format for the duration since this program's start
     ///
     /// This is not the duration since the target process(es) or threads began.
-    #[arg(default_value = "usecs", long, verbatim_doc_comment)]
+    #[arg(long, default_value = "usecs", verbatim_doc_comment)]
     duration_format: DurationFormat,
-    /// Show a header (tool/time/task/pid/value) as the first time of output
+    /// Write events to this file, if present, or to standard output if not given
+    #[arg(long, short = 'o')]
+    output_file: Option<std::path::PathBuf>,
+    /// Omit the header (tool/time/task/pid/value) as the first line of output
     ///
     /// Has no effect when the output format ('-f, --output-format') is json.
     /// Formatted according to the output format.
     #[arg(long, verbatim_doc_comment)]
-    header: bool,
+    no_header: bool,
     /// Show a header and exit ('-V, --version' has precedence)
     ///
     /// See '--header' for more.
-    #[arg(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment, conflicts_with = "no_header")]
     just_header: bool,
 }
 
@@ -137,11 +141,11 @@ async fn forever() {
 fn show_header(opts: &Cli) {
     use OutputFormat::*;
     match opts.output_format {
-        Columnar => println!(
+        Columnar => outf::outfprintln!(
             "{:<8} {:<13} {:<20} {:<8} {:<14}",
             "tool", "time", "task", "pid", "value"
         ),
-        Csv => println!("tool,time,task,pid,value"),
+        Csv => outf::outfprintln!("tool,time,task,pid,value"),
         Json => (),
     }
 }
@@ -154,19 +158,20 @@ fn show_event<Value>(
 ) where
     Value: std::fmt::Display,
 {
+    use DurationFormat::*;
     use OutputFormat::*;
     let d = match duration_format {
-        DurationFormat::HhMmSs => duration_to_hh_mm_ss_string(event.time),
-        DurationFormat::HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
-        DurationFormat::Usecs => duration_to_usecs_string(event.time),
+        HhMmSs => duration_to_hh_mm_ss_string(event.time),
+        HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
+        Usecs => duration_to_usecs_string(event.time),
     };
     let t = bytes_to_str(&event.task);
     let p = event.pid;
     let v = &event.value;
     match output_format {
-        Columnar => println!("{tool:<8} {d:<13} {t:<20} {p:<8} {v:<14}"),
-        Csv => println!("{tool},{d},{t},{p},{v}"),
-        Json => println!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
+        Columnar => outf::outfprintln!("{tool:<8} {d:<13} {t:<20} {p:<8} {v:<14}"),
+        Csv => outf::outfprintln!("{tool},{d},{t},{p},{v}"),
+        Json => outf::outfprintln!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
     }
 }
 
@@ -210,7 +215,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
             })
         };
     }
-    if opts.header || opts.just_header {
+    if !opts.no_header {
         show_header(&opts);
     }
     if opts.just_header {
@@ -230,8 +235,9 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
 #[allow(clippy::unit_arg)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
     let opts = Cli::parse();
+    env_logger::init();
+    outf::init(&opts.output_file);
     let _ = flaregun::time::prog_start();
     Ok(tokio::select! {
         r = flaregun(opts) => r?,
