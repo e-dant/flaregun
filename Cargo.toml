@@ -9,7 +9,7 @@ homepage = "https://github.com/e-dant/flaregun"
 keywords = ["cli", "bpf", "performance", "tracing"]
 categories = [
   "command-line-interface",
-  "command-line-utilities"
+  "command-line-utilities",
   "development-tools::debugging",
   "development-tools::profiling",
   "asynchronous",
