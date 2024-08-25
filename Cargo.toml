@@ -6,7 +6,7 @@ authors = ["Will <edant.io@protonmail.com>"]
 description = "Tracing and monitoring tools for Linux"
 documentation = "https://github.com/e-dant/flaregun"
 homepage = "https://github.com/e-dant/flaregun"
-keywords = ["cli", "bpf", "performance", "tracing"]
+keywords = ["cli", "bpf", "performance", "tracing", "metrics"]
 categories = [
   "command-line-interface",
   "command-line-utilities",
