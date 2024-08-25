@@ -1,101 +1,68 @@
 # Flaregun
 
-```
-Tracing and monitoring tools for Linux
+Tracing and monitoring tools for Linux.
 
+Allows tracing of:
+- Block and character device i/o latency
+- Run queue scheduling latency
+- File system latency
+- TCP packet latency
+
+And monitoring of:
+- CPU utilization %
+- Virtual memory utilization %
+
+These metrics can be exported in a columnar, CSV, or JSON format.
+
+When written as a CSV file, the output may be plotted using `fl-plot`:
+```sh
+fl --all --output-file /tmp/trace.csv --pid 42
+# ...
+fl-plot -i /tmp/trace.csv -o /tmp/trace.html
+```
+
+The plot is a standalone HTML file which can be opened in a browser.
+
+This is a library as well as a few command-line tools.
+
+```
 Usage: fl [OPTIONS]
 
 Options:
-  -p, --pid <PID>
-          Process ID to trace, or 0 for everything
-          
-          +--process-A-+ --(fork)-> +--process-B-+ --(thread)-> +--process-B-+
-          |  pid  43   |         !> |  pid  42   |              |  pid  42   |
-          |  tgid 43   |         !> |  tgid 42   |           !> |  tgid 44   |
-          +-thread-1/1-+            +-thread-1/2-+              +-thread-2/2-+
-          
-          - `$ fl --pid 42` would monitor process B and all of its threads.
-          - `$ fl --tgid 44` would monitor process B's second thread.
-          
-          This diagram represents the common meaning of pid and tgid to the user.
-          (The meaning of pid and tgid is reversed in kernel-land.)
-          
-          [default: 0]
-
-      --tgid <TGID>
-          Thread ID to trace
-          
-          See '--pid' for more.
-          
-          [default: 0]
-
-  -l, --min-lat-us <MIN_LAT_US>
-          Trace latency higher than this value
-          
-          Affects '--bio_lat', '--rq_lat' and '--fs-lat'
-          
-          [default: 10000]
-
-  -i, --reporting-interval-ms <REPORTING_INTERVAL_MS>
-          For monitoring tools, stats will be reported at this interval
-          
-          Affects '--cpu-pct' and '--mem-pct'
-          
-          [default: 1000]
-
   -a, --all
           Enable all tracing and monitoring tools
-
       --bio-lat
           Enable block and character device i/o latency tracing
-
       --rq-lat
           Enable run queue latency tracing
-
       --fs-lat
           Enable file system latency tracing
-
+      --tcp-pkt-lat
+          Enable TCP packet latency tracing
       --cpu-pct
           Enable cpu utilization % monitoring
-
       --mem-pct
           Enable virtual memory utilization % monitoring
-
+  -p, --pid <PID>
+          Process ID to trace, or 0 for everything [default: 0]
+      --tgid <TGID>
+          Thread ID to trace [default: 0]
+  -l, --min-lat-us <MIN_LAT_US>
+          Trace latency higher than this value [default: 10000]
+  -i, --reporting-interval-ms <REPORTING_INTERVAL_MS>
+          For monitoring tools, stats will be reported at this interval [default: 1000]
   -f, --output-format <OUTPUT_FORMAT>
-          Some output styles are better for humans (columnar), others for machines
-          
-          - columnar
-            cpu_pct  101410        systemd              1        0.00
-          - csv
-            cpu_pct,101459,systemd,1,0.00
-          - json
-            {"tool":"cpu_pct","time":"101363","task":"systemd","pid":1,"value":0.00}
-          
-          [default: columnar]
-          [possible values: columnar, csv, json]
-
+          Some output styles are better for humans (columnar), others for machines [default: columnar] [possible values: columnar, csv, json]
       --duration-format <DURATION_FORMAT>
-          Output format for the duration since this program's start
-          
-          This is not the duration since the target process(es) or threads began.
-          
-          [default: usecs]
-          [possible values: hh-mm-ss, hh-mm-ss-mss, usecs]
-
-      --header
-          Show a header (tool/time/task/pid/value) as the first time of output
-          
-          Has no effect when the output format ('-f, --output-format') is json.
-          Formatted according to the output format.
-
+          Output format for the duration since this program's start [default: usecs] [possible values: hh-mm-ss, hh-mm-ss-mss, usecs]
+  -o, --output-file <OUTPUT_FILE>
+          Write events to this file, if present, or to standard output if not given
+      --no-header
+          Omit the header (tool/time/task/pid/value) as the first line of output
       --just-header
           Show a header and exit ('-V, --version' has precedence)
-          
-          See '--header' for more.
-
   -h, --help
-          Print help (see a summary with '-h')
-
+          Print help (see more with '--help')
   -V, --version
           Print version
 ```

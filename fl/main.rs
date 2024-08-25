@@ -18,7 +18,30 @@ enum DurationFormat {
 }
 
 #[derive(Debug, Parser)]
-#[clap(version, long_about = "Tracing and monitoring tools for Linux")]
+#[clap(version, long_about = r#"
+Tracing and monitoring tools for Linux.
+
+Allows tracing of:
+- Block and character device i/o latency
+- Run queue scheduling latency
+- File system latency
+- TCP packet latency
+
+And monitoring of:
+- CPU utilization %
+- Virtual memory utilization %
+
+These metrics can be exported in a columnar, CSV, or JSON format.
+
+When written as a CSV file, the output may be plotted using `fl-plot`:
+```sh
+fl --all --output-file /tmp/trace.csv --pid 42
+# ...
+fl-plot -i /tmp/trace.csv -o /tmp/trace.html
+```
+
+The plot is a standalone HTML file which can be opened in a browser.
+"#)]
 struct Cli {
     /// Enable all tracing and monitoring tools.
     #[arg(long, short)]
