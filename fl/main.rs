@@ -20,6 +20,27 @@ enum DurationFormat {
 #[derive(Debug, Parser)]
 #[clap(version, long_about = "Tracing and monitoring tools for Linux")]
 struct Cli {
+    /// Enable all tracing and monitoring tools.
+    #[arg(long, short)]
+    all: bool,
+    /// Enable block and character device i/o latency tracing.
+    #[arg(long)]
+    bio_lat: bool,
+    /// Enable run queue latency tracing
+    #[arg(long)]
+    rq_lat: bool,
+    /// Enable file system latency tracing
+    #[arg(long)]
+    fs_lat: bool,
+    /// Enable TCP packet latency tracing
+    #[arg(long)]
+    tcp_pkt_lat: bool,
+    /// Enable cpu utilization % monitoring
+    #[arg(long)]
+    cpu_pct: bool,
+    /// Enable virtual memory utilization % monitoring
+    #[arg(long)]
+    mem_pct: bool,
     /// Process ID to trace, or 0 for everything
     ///
     /// +--process-A-+ --(fork)-> +--process-B-+ --(thread)-> +--process-B-+
@@ -55,27 +76,6 @@ struct Cli {
     /// - '--mem-pct'
     #[arg(long, short = 'i', default_value = "1000", verbatim_doc_comment)]
     reporting_interval_ms: u64,
-    /// Enable all tracing and monitoring tools.
-    #[arg(long, short)]
-    all: bool,
-    /// Enable block and character device i/o latency tracing.
-    #[arg(long)]
-    bio_lat: bool,
-    /// Enable run queue latency tracing
-    #[arg(long)]
-    rq_lat: bool,
-    /// Enable file system latency tracing
-    #[arg(long)]
-    fs_lat: bool,
-    /// Enable TCP packet latency tracing
-    #[arg(long)]
-    tcp_pkt_lat: bool,
-    /// Enable cpu utilization % monitoring
-    #[arg(long)]
-    cpu_pct: bool,
-    /// Enable virtual memory utilization % monitoring
-    #[arg(long)]
-    mem_pct: bool,
     /// Some output styles are better for humans (columnar), others for machines
     ///
     /// - columnar
@@ -142,7 +142,7 @@ fn show_header(opts: &Cli) {
     use OutputFormat::*;
     match opts.output_format {
         Columnar => outf::outfprintln!(
-            "{:<8} {:<13} {:<20} {:<8} {:<14}",
+            "{:<12} {:<13} {:<20} {:<8} {:<14}",
             "tool", "time", "task", "pid", "value"
         ),
         Csv => outf::outfprintln!("tool,time,task,pid,value"),
@@ -169,7 +169,7 @@ fn show_event<Value>(
     let p = event.pid;
     let v = &event.value;
     match output_format {
-        Columnar => outf::outfprintln!("{tool:<8} {d:<13} {t:<20} {p:<8} {v:<14}"),
+        Columnar => outf::outfprintln!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
         Csv => outf::outfprintln!("{tool},{d},{t},{p},{v}"),
         Json => outf::outfprintln!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
     }
