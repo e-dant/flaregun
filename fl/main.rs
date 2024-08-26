@@ -18,7 +18,9 @@ enum DurationFormat {
 }
 
 #[derive(Debug, Parser)]
-#[clap(version, long_about = r#"
+#[clap(
+    version,
+    long_about = r#"
 Tracing and monitoring tools for Linux.
 
 Allows tracing of:
@@ -41,7 +43,8 @@ fl-plot -i /tmp/trace.csv -o /tmp/trace.html
 ```
 
 The plot is a standalone HTML file which can be opened in a browser.
-"#)]
+"#
+)]
 struct Cli {
     /// Enable all tracing and monitoring tools.
     #[arg(long, short)]

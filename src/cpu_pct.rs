@@ -1,41 +1,50 @@
+type CollectorTask = tokio::task::JoinHandle<Result<(), crate::tool::Error>>;
+
 pub struct CpuPct {
     cfg: crate::cfg::Cfg,
     rx: std::sync::mpsc::Receiver<f32>,
     task: String,
-    _collector_task: tokio::task::JoinHandle<()>,
+    _collector_task: CollectorTask,
 }
 
-fn spawn_collector(
-    tx: std::sync::mpsc::Sender<f32>,
-    cfg: crate::cfg::Cfg,
-) -> tokio::task::JoinHandle<()> {
+fn spawn_collector(tx: std::sync::mpsc::Sender<f32>, cfg: crate::cfg::Cfg) -> CollectorTask {
     tokio::task::spawn_blocking(move || {
         let ms = std::time::Duration::from_millis(cfg.targ_reporting_interval_ms);
-        let mut p = psutil::process::Process::new(cfg.targ_pid as u32).unwrap();
-        loop {
-            let v = p.cpu_percent().unwrap();
-            match tx.send(v) {
-                Ok(_) => std::thread::sleep(ms),
-                Err(_) => break,
-            }
+        macro_rules! monitor {
+            ($p:expr) => {
+                loop {
+                    match $p.cpu_percent() {
+                        Ok(v) => match tx.send(v) {
+                            Ok(_) => std::thread::sleep(ms),
+                            Err(_) => break,
+                        },
+                        Err(_) => log::error!("Failed to get cpu percent"),
+                    }
+                }
+            };
         }
+        if cfg.targ_pid > 0 {
+            let mut p = psutil::process::Process::new(cfg.targ_pid as u32)
+                .map_err(|_| crate::tool::Error::Runtime("Failed to open stats for process"))?;
+            monitor!(p);
+        } else {
+            let mut p = psutil::cpu::CpuPercentCollector::new()
+                .map_err(|_| crate::tool::Error::Runtime("Failed to open stats for system"))?;
+            monitor!(p);
+        }
+        Ok(())
     })
 }
 
 impl crate::tool::Tool for CpuPct {
     fn try_new(cfg: crate::cfg::Cfg) -> Result<Self, crate::tool::Error> {
         let (tx, rx) = std::sync::mpsc::channel();
-        if cfg.targ_pid == 0 && cfg.targ_tgid == 0 {
-            let m = "Either pid or tgid must be specified for tool CpuPct";
-            Err(crate::tool::Error::Misconfig(m))
-        } else {
-            Ok(Self {
-                cfg,
-                rx,
-                task: crate::event::pid_to_name(cfg.targ_pid),
-                _collector_task: spawn_collector(tx, cfg),
-            })
-        }
+        Ok(Self {
+            cfg,
+            rx,
+            task: crate::event::pid_to_name(cfg.targ_pid),
+            _collector_task: spawn_collector(tx, cfg),
+        })
     }
 }
 
