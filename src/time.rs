@@ -1,6 +1,9 @@
-static PROG_START: std::sync::LazyLock<std::time::Instant> =
-    std::sync::LazyLock::new(std::time::Instant::now);
+static PROG_START: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
 
 pub fn prog_start() -> std::time::Instant {
-    *PROG_START
+    let mut start = PROG_START.lock().unwrap();
+    if start.is_none() {
+        *start = Some(std::time::Instant::now());
+    }
+    start.unwrap()
 }

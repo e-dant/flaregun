@@ -57,7 +57,6 @@ fn plot_from_csv_file(file_path: &str) -> Result<plotly::Plot, Box<dyn std::erro
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
     let opts = Cli::parse();
     plot_from_csv_file(&opts.input_file)?.write_html(&opts.output_file);
     Ok(())

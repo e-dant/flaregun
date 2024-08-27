@@ -268,7 +268,6 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = Cli::parse();
-    env_logger::init();
     outf::init(&opts.output_file);
     let _ = flaregun::time::prog_start();
     Ok(tokio::select! {
