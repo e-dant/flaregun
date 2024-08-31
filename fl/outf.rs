@@ -43,6 +43,66 @@ pub fn write_line(s: &str) {
     }
 }
 
+const BYTES_BEFORE_FLUSH: usize = 1024 * 1024 * 100;
+
+struct Buf {
+    buf: [u8; BYTES_BEFORE_FLUSH],
+    end: usize,
+}
+
+impl Buf {
+    const fn new() -> Self {
+        Self {
+            buf: [0; BYTES_BEFORE_FLUSH],
+            end: 0,
+        }
+    }
+
+    fn write_line(&mut self, s: &str) {
+        let len_with_newline = s.len() + 1;
+        if len_with_newline > self.buf.len() {
+            self.flush();
+            write_line(s);
+        } else {
+            if self.end + len_with_newline > self.buf.len() {
+                self.flush();
+            }
+            let end_with_newline = self.end + len_with_newline - 1;
+            self.buf[self.end..end_with_newline].copy_from_slice(s.as_bytes());
+            self.buf[end_with_newline] = b'\n';
+            self.end += len_with_newline;
+        }
+    }
+
+    fn flush(&mut self) {
+        if self.end > 0 {
+            match std::str::from_utf8(&self.buf[..self.end]) {
+                Ok(s) => write_line(s),
+                Err(e) => log::error!("{e:?}"),
+            }
+            self.end = 0;
+        }
+    }
+}
+
+static BUF: std::sync::Mutex<Buf> = std::sync::Mutex::new(Buf::new());
+
+pub fn buf_write_line(s: &str) {
+    if let Ok(mut buf) = BUF.lock() {
+        buf.write_line(s);
+    } else {
+        write_line(s);
+    }
+}
+
+pub fn buf_flush() {
+    if let Ok(mut buf) = BUF.lock() {
+        buf.flush();
+    } else {
+        log::error!("Lock failed, cannot flush output buffer");
+    }
+}
+
 // A `println!`-compatible macro that
 // - Writes to the output file specified in a previous call to `init()`
 // - Writes to stdout, if no output file was specified
@@ -55,4 +115,12 @@ macro_rules! outfprintln {
     }
 }
 
+#[macro_export]
+macro_rules! outfbufprintln {
+    ($($arg:tt)*) => {
+        $crate::outf::buf_write_line(&format!($($arg)*))
+    }
+}
+
+pub use outfbufprintln;
 pub use outfprintln;

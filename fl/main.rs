@@ -95,6 +95,18 @@ struct Cli {
     /// - '--tcp-pkt-lat'
     #[arg(long, short = 'l', default_value = "10000", verbatim_doc_comment)]
     min_lat_us: u64,
+    /// Trace block i/o latency higher than this value
+    #[arg(long, conflicts_with = "min_lat_us")]
+    min_bio_lat_us: Option<u64>,
+    /// Trace run queue latency higher than this value
+    #[arg(long, conflicts_with = "min_lat_us")]
+    min_rq_lat_us: Option<u64>,
+    /// Trace file system latency higher than this value
+    #[arg(long, conflicts_with = "min_lat_us")]
+    min_fs_lat_us: Option<u64>,
+    /// Trace TCP packet latency higher than this value
+    #[arg(long, conflicts_with = "min_lat_us")]
+    min_tcp_pkt_lat_us: Option<u64>,
     /// For monitoring tools, stats will be reported at this interval
     ///
     /// Affects:
@@ -141,11 +153,9 @@ fn duration_to_hh_mm_ss_string(duration: std::time::Duration) -> String {
 }
 
 fn duration_to_hh_mm_ss_mss_string(duration: std::time::Duration) -> String {
-    let hh = duration.as_secs() / 3600 % 99;
-    let mm: u8 = ((duration.as_secs() / 60) % 60).try_into().unwrap();
-    let ss: u8 = (duration.as_secs() % 60).try_into().unwrap();
-    let us = duration.subsec_millis();
-    format!("{hh:02}:{mm:02}:{ss:02}.{us:03}")
+    let hh_mm_ss = duration_to_hh_mm_ss_string(duration);
+    let ms = duration.subsec_millis();
+    format!("{hh_mm_ss}.{ms:03}")
 }
 
 fn duration_to_usecs_string(duration: std::time::Duration) -> String {
@@ -199,9 +209,9 @@ fn show_event<Value>(
     let p = event.pid;
     let v = &event.value;
     match output_format {
-        Columnar => outf::outfprintln!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
-        Csv => outf::outfprintln!("{tool},{d},{t},{p},{v}"),
-        Json => outf::outfprintln!(
+        Columnar => outf::outfbufprintln!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
+        Csv => outf::outfbufprintln!("{tool},{d},{t},{p},{v}"),
+        Json => outf::outfbufprintln!(
             r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#
         ),
     }
@@ -216,19 +226,19 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     use flaregun::RqLat;
     use flaregun::TcpPktLat;
     use futures::StreamExt;
-    let cfg = flaregun::Cfg {
-        min_lat_us: opts.min_lat_us,
-        targ_reporting_interval_ms: opts.reporting_interval_ms,
-        targ_pid: opts.pid,
-        targ_tgid: opts.tgid,
-        targ_dev: 0,
-        targ_filter_dev: false,
-        targ_filter_cgroup: false,
-        targ_filter_queued: false,
-    };
     macro_rules! tool_task {
-        ($opt:ident, $prog:ident) => {
+        ($opt:ident, $opt_mlu:expr, $prog:ident) => {
             tokio::spawn(async move {
+                let cfg = flaregun::Cfg {
+                    min_lat_us: $opt_mlu.unwrap_or(opts.min_lat_us),
+                    targ_reporting_interval_ms: opts.reporting_interval_ms,
+                    targ_pid: opts.pid,
+                    targ_tgid: opts.tgid,
+                    targ_dev: 0,
+                    targ_filter_dev: false,
+                    targ_filter_cgroup: false,
+                    targ_filter_queued: false,
+                };
                 if opts.all || opts.$opt {
                     let mut prog = $prog::try_new(cfg)?;
                     while let Some(event) = prog.next().await {
@@ -255,23 +265,25 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     flaregun::must_bump_memlock_rlimit_once();
     Ok(tokio::select! {
-        r = tool_task!(bio_lat, BioLat) => r,
-        r = tool_task!(cpu_pct, CpuPct) => r,
-        r = tool_task!(fs_lat, FsLat) => r,
-        r = tool_task!(mem_pct, MemPct) => r,
-        r = tool_task!(rq_lat, RqLat) => r,
-        r = tool_task!(tcp_pkt_lat, TcpPktLat) => r,
+        r = tool_task!(bio_lat, opts.min_bio_lat_us, BioLat) => r,
+        r = tool_task!(fs_lat, opts.min_fs_lat_us, FsLat) => r,
+        r = tool_task!(rq_lat, opts.min_rq_lat_us, RqLat) => r,
+        r = tool_task!(tcp_pkt_lat, opts.min_tcp_pkt_lat_us, TcpPktLat) => r,
+        r = tool_task!(cpu_pct, None, CpuPct) => r,
+        r = tool_task!(mem_pct, None, MemPct) => r,
     }??)
 }
 
 #[allow(clippy::unit_arg)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = flaregun::time::prog_start();
     let opts = Cli::parse();
     outf::init(&opts.output_file);
-    let _ = flaregun::time::prog_start();
-    Ok(tokio::select! {
-        r = flaregun(opts) => r?,
-        _ = tokio::signal::ctrl_c() => (),
-    })
+    let r = tokio::select! {
+        r = flaregun(opts) => r,
+        _ = tokio::signal::ctrl_c() => Ok(()),
+    };
+    outf::buf_flush();
+    r
 }

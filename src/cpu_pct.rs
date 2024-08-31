@@ -18,7 +18,10 @@ fn spawn_collector(tx: std::sync::mpsc::Sender<f32>, cfg: crate::cfg::Cfg) -> Co
                             Ok(_) => std::thread::sleep(ms),
                             Err(_) => break,
                         },
-                        Err(_) => log::error!("Failed to get cpu percent"),
+                        Err(_) => {
+                            log::error!("Failed to get cpu percent");
+                            break;
+                        }
                     }
                 }
             };
