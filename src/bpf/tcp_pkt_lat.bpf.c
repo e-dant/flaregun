@@ -114,7 +114,8 @@ static int handle_tcp_rcv_space_adjust(void* ctx, struct sock* sk)
   eventp->lat_us = lat_us;
   eventp->sport = BPF_CORE_READ(inet, inet_sport);
   eventp->dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
-  bpf_get_current_comm(&eventp->task, TASK_COMM_LEN);
+  __builtin_memset(eventp->task, 0, sizeof(eventp->task));
+  bpf_get_current_comm(&eventp->task, FL_TASK_COMM_LEN);
   family = BPF_CORE_READ(sk, __sk_common.skc_family);
   if (family == AF_INET) {
     eventp->saddr[0] = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);

@@ -38,7 +38,7 @@ pub fn try_write_line(s: &str) -> Result<(), std::io::Error> {
 
 pub fn write_line(s: &str) {
     if let Err(e) = try_write_line(s) {
-        log::error!("{:?}", e);
+        log::error!("{e:?}");
         println!("{s}");
     }
 }
@@ -91,7 +91,7 @@ pub fn buf_write_line(s: &str) {
     if let Ok(mut buf) = BUF.lock() {
         buf.write_line(s);
     } else {
-        write_line(s);
+        log::error!("Lock failed, cannot write to output buffer");
     }
 }
 

@@ -96,16 +96,16 @@ struct Cli {
     #[arg(long, short = 'l', default_value = "10000", verbatim_doc_comment)]
     min_lat_us: u64,
     /// Trace block i/o latency higher than this value
-    #[arg(long, conflicts_with = "min_lat_us")]
+    #[arg(long, default_value = None, conflicts_with = "min_lat_us")]
     min_bio_lat_us: Option<u64>,
     /// Trace run queue latency higher than this value
-    #[arg(long, conflicts_with = "min_lat_us")]
+    #[arg(long, default_value = None, conflicts_with = "min_lat_us")]
     min_rq_lat_us: Option<u64>,
     /// Trace file system latency higher than this value
-    #[arg(long, conflicts_with = "min_lat_us")]
+    #[arg(long, default_value = None, conflicts_with = "min_lat_us")]
     min_fs_lat_us: Option<u64>,
     /// Trace TCP packet latency higher than this value
-    #[arg(long, conflicts_with = "min_lat_us")]
+    #[arg(long, default_value = None, conflicts_with = "min_lat_us")]
     min_tcp_pkt_lat_us: Option<u64>,
     /// For monitoring tools, stats will be reported at this interval
     ///
@@ -132,6 +132,12 @@ struct Cli {
     /// Write events to this file, if present, or to standard output if not given
     #[arg(long, short = 'o')]
     output_file: Option<std::path::PathBuf>,
+    /// Use buffered writes for events
+    ///
+    /// Can increase performance.
+    /// Send a SIGINT to flush the buffer and exit.
+    #[arg(long, short = 'b', default_value = "true", verbatim_doc_comment)]
+    buffered: bool,
     /// Omit the header (tool/time/task/pid/value) as the first line of output
     ///
     /// Has no effect when the output format ('-f, --output-format') is json.
@@ -176,8 +182,16 @@ async fn forever() {
 
 fn show_header(opts: &Cli) {
     use OutputFormat::*;
+    macro_rules! printfn {
+        ($($arg:tt)*) => {
+            match opts.buffered {
+                true => outf::outfbufprintln!($($arg)*),
+                false => outf::outfprintln!($($arg)*),
+            }
+        };
+    }
     match opts.output_format {
-        Columnar => outf::outfprintln!(
+        Columnar => printfn!(
             "{:<12} {:<13} {:<20} {:<8} {:<14}",
             "tool",
             "time",
@@ -185,7 +199,7 @@ fn show_header(opts: &Cli) {
             "pid",
             "value"
         ),
-        Csv => outf::outfprintln!("tool,time,task,pid,value"),
+        Csv => printfn!("tool,time,task,pid,value"),
         Json => (),
     }
 }
@@ -194,6 +208,7 @@ fn show_event<Value>(
     tool: &str,
     output_format: OutputFormat,
     duration_format: DurationFormat,
+    buffered: bool,
     event: &flaregun::Event<Value>,
 ) where
     Value: std::fmt::Display,
@@ -208,12 +223,18 @@ fn show_event<Value>(
     let t = bytes_to_str(&event.task);
     let p = event.pid;
     let v = &event.value;
+    macro_rules! printfn {
+        ($($arg:tt)*) => {
+            match buffered {
+                true => outf::outfbufprintln!($($arg)*),
+                false => outf::outfprintln!($($arg)*),
+            }
+        };
+    }
     match output_format {
-        Columnar => outf::outfbufprintln!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
-        Csv => outf::outfbufprintln!("{tool},{d},{t},{p},{v}"),
-        Json => outf::outfbufprintln!(
-            r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#
-        ),
+        Columnar => printfn!("{tool:<12} {d:<13} {t:<20} {p:<8} {v:<14}"),
+        Csv => printfn!("{tool},{d},{t},{p},{v}"),
+        Json => printfn!(r#"{{"tool":"{tool}","time":"{d}","task":"{t}","pid":{p},"value":{v}}}"#),
     }
 }
 
@@ -239,6 +260,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     targ_filter_cgroup: false,
                     targ_filter_queued: false,
                 };
+                log::trace!("cfg: {:?}", cfg);
                 if opts.all || opts.$opt {
                     let mut prog = $prog::try_new(cfg)?;
                     while let Some(event) = prog.next().await {
@@ -246,6 +268,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
                             stringify!($opt),
                             opts.output_format,
                             opts.duration_format,
+                            opts.buffered,
                             &event,
                         );
                     }
@@ -277,13 +300,14 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
 #[allow(clippy::unit_arg)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     let _ = flaregun::time::prog_start();
     let opts = Cli::parse();
+    let mut sigints = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
     outf::init(&opts.output_file);
     let r = tokio::select! {
         r = flaregun(opts) => r,
-        _ = tokio::signal::ctrl_c() => Ok(()),
+        _ = sigints.recv() => Ok(outf::buf_flush()),
     };
-    outf::buf_flush();
     r
 }

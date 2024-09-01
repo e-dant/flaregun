@@ -1,6 +1,6 @@
 [package]
 name = "flaregun"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 authors = ["Will <edant.io@protonmail.com>"]
 description = "Tracing and monitoring tools for Linux"
@@ -34,7 +34,7 @@ required-features = ["fl", "fl-plot"]
 
 [features]
 fl = ["clap", "structopt"]
-fl-plot = ["plotly", "csv", "serde"]
+fl-plot = ["env_logger", "plotly", "csv", "serde"]
 default = ["fl", "fl-plot"]
 
 [dependencies]
@@ -48,6 +48,7 @@ rlimit = "0.10.1"
 tokio = { version = "1.39.3", features = ["macros", "rt", "time", "fs", "io-std", "io-util", "sync", "signal"] }
 
 # `fl` cli dependencies
+env_logger = { version = "0.11.5", optional = true }
 clap = { version = "4.5.16", features = ["derive"], optional = true }
 structopt = { version = "0.3.26", optional = true }
 
