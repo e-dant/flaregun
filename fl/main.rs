@@ -11,10 +11,21 @@ enum OutputFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum DurationFormat {
+enum TimeFormat {
+    /// Explicitly, the duration since this program's start, in hh:mm:ss format.
+    /// Same as HhMmSs.
+    DurationHhMmSs,
+    /// Duration since this program's start, in hh:mm:ss.mss format. Same as HhMmSsMss.
+    DurationHhMmSsMss,
+    /// Duration since this program's start, in microseconds. Same as Usecs.
+    DurationUsecs,
+    /// The current, utc system time, in an ISO 8601 format, with microsecond precision.
+    /// Same as Iso8601.
+    TimeIso8601,
     HhMmSs,
     HhMmSsMss,
     Usecs,
+    Iso8601,
 }
 
 #[derive(Debug, Parser)]
@@ -124,11 +135,12 @@ struct Cli {
     ///   {"tool":"cpu_pct","time":"101363","task":"systemd","pid":1,"value":0.00}
     #[arg(long, short = 'f', default_value = "columnar", verbatim_doc_comment)]
     output_format: OutputFormat,
-    /// Output format for the duration since this program's start
-    ///
-    /// This is not the duration since the target process(es) or threads began.
-    #[arg(long, default_value = "usecs", verbatim_doc_comment)]
-    duration_format: DurationFormat,
+    /// Output format for the duration since this program's start or the current time.
+    #[arg(long, short = 't', default_value = "iso8601", verbatim_doc_comment)]
+    time_format: TimeFormat,
+    /// Deprecated: Use '--time-format' instead
+    #[arg(long, default_value = None, verbatim_doc_comment)]
+    duration_format: Option<TimeFormat>,
     /// Write events to this file, if present, or to standard output if not given
     #[arg(long, short = 'o')]
     output_file: Option<std::path::PathBuf>,
@@ -169,6 +181,10 @@ fn duration_to_usecs_string(duration: std::time::Duration) -> String {
     format!("{us}")
 }
 
+fn time_as_iso_8601_string() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true)
+}
+
 fn bytes_to_str(bytes: &[u8]) -> &str {
     std::str::from_utf8(bytes)
         .unwrap()
@@ -207,18 +223,19 @@ fn show_header(opts: &Cli) {
 fn show_event<Value>(
     tool: &str,
     output_format: OutputFormat,
-    duration_format: DurationFormat,
+    time_format: TimeFormat,
     buffered: bool,
     event: &flaregun::Event<Value>,
 ) where
     Value: std::fmt::Display,
 {
-    use DurationFormat::*;
     use OutputFormat::*;
-    let d = match duration_format {
-        HhMmSs => duration_to_hh_mm_ss_string(event.time),
-        HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
-        Usecs => duration_to_usecs_string(event.time),
+    use TimeFormat::*;
+    let d = match time_format {
+        DurationHhMmSs | HhMmSs => duration_to_hh_mm_ss_string(event.time),
+        DurationHhMmSsMss | HhMmSsMss => duration_to_hh_mm_ss_mss_string(event.time),
+        DurationUsecs | Usecs => duration_to_usecs_string(event.time),
+        TimeIso8601 | Iso8601 => time_as_iso_8601_string(),
     };
     let t = bytes_to_str(&event.task);
     let p = event.pid;
@@ -250,6 +267,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
     macro_rules! tool_task {
         ($opt:ident, $opt_mlu:expr, $prog:ident) => {
             tokio::spawn(async move {
+                let time_format = opts.duration_format.unwrap_or(opts.time_format);
                 let cfg = flaregun::Cfg {
                     min_lat_us: $opt_mlu.unwrap_or(opts.min_lat_us),
                     targ_reporting_interval_ms: opts.reporting_interval_ms,
@@ -267,7 +285,7 @@ async fn flaregun(opts: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         show_event(
                             stringify!($opt),
                             opts.output_format,
-                            opts.duration_format,
+                            time_format,
                             opts.buffered,
                             &event,
                         );

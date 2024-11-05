@@ -16,13 +16,13 @@ struct Cli {
 #[derive(serde::Deserialize)]
 struct Event {
     tool: String,
-    time: u64,
+    time: String,
     task: String,
     pid: i32,
     value: f64,
 }
 
-type PlottableByTool = HashMap<String, Vec<(u64, f64)>>;
+type PlottableByTool = HashMap<String, Vec<(String, f64)>>;
 
 fn many_plottable_from_csv_file_by_tool(
     file_path: &str,
@@ -46,7 +46,7 @@ fn plot_from_csv_file(file_path: &str) -> Result<plotly::Plot, Box<dyn std::erro
     p.set_layout(plotly::layout::Layout::new());
     for (tool, values) in many_plottable_from_csv_file_by_tool(file_path)? {
         let t = plotly::Scatter::new(
-            values.iter().map(|(x, _)| *x).collect(),
+            values.iter().map(|(x, _)| x.clone()).collect(),
             values.iter().map(|(_, y)| *y).collect(),
         )
         .mode(plotly::common::Mode::LinesMarkers)
@@ -57,6 +57,7 @@ fn plot_from_csv_file(file_path: &str) -> Result<plotly::Plot, Box<dyn std::erro
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     let opts = Cli::parse();
     plot_from_csv_file(&opts.input_file)?.write_html(&opts.output_file);
     Ok(())

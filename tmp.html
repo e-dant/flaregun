@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+</head>
+
+<body>
+    <div>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+        <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+        <div id="plotly-html-element" class="plotly-graph-div" style="height:100%; width:100%;"></div>
+
+        <script type="module">
+            const graph_div = document.getElementById("plotly-html-element");
+            await Plotly.newPlot(graph_div, {
+  "data": [
+    {
+      "type": "scatter",
+      "name": "mem_pct",
+      "mode": "lines+markers",
+      "x": [
+        "2024-11-05T19:30:40.626777Z",
+        "2024-11-05T19:30:41.536727Z",
+        "2024-11-05T19:30:42.547158Z",
+        "2024-11-05T19:30:43.559476Z"
+      ],
+      "y": [
+        0.17,
+        0.17,
+        0.17,
+        0.17
+      ]
+    },
+    {
+      "type": "scatter",
+      "name": "cpu_pct",
+      "mode": "lines+markers",
+      "x": [
+        "2024-11-05T19:30:40.626769Z",
+        "2024-11-05T19:30:41.536720Z",
+        "2024-11-05T19:30:42.547151Z",
+        "2024-11-05T19:30:43.559467Z",
+        "2024-11-05T19:30:44.570848Z"
+      ],
+      "y": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0
+      ]
+    }
+  ],
+  "layout": {},
+  "config": {}
+});
+        </script>
+    </div>
+</body>
+
+</html>
